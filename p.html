@@ -1,0 +1,321 @@
+<body>
+
+<table>
+<tr>
+<td>
+<canvas id="pcanvas" height="300px" style="border:2px solid blue" width="300px"> </canvas>
+</td>
+
+<script src="http://code.jquery.com/jquery-1.8.3.js"></script>
+<script>
+
+var canElement=document.getElementById("pcanvas");
+var pcan=canElement.getContext("2d");
+var can=canElement.getContext("2d");
+var canx=canElement.width
+var cany=canElement.height
+can.fillStyle="#000000";
+can.strokeStyle="#000000";
+can.lineWidth=1;
+
+var cfillStyle="#000000";
+var cstrokeStyle="#000000";
+var clineWidth=1;
+
+if(image==undefined)
+{
+var image=new Array();
+}
+var hist=image.length-1;
+var latesthist=hist;
+var edithist=hist+1;
+
+
+
+var  currentTool;
+var me1;
+
+var stroke=true;
+var fill=true;
+
+
+
+
+function draw(ob)
+{ 
+	    if(ob.objectType=="rect")
+		{
+			if(ob.fill !="")
+			{
+				can.fillStyle=ob.fill;
+				can.fillRect(ob.x0,ob.y0,ob.x1-ob.x0,ob.y1-ob.y0);
+			}
+			if(ob.stroke !="")
+			{	can.lineWidth=ob.line;
+				can.strokeStyle=ob.stroke;
+				can.lineWidth=ob.line;
+				can.strokeRect(ob.x0,ob.y0,ob.x1-ob.x0,ob.y1-ob.y0);
+			}
+			
+			
+		}
+		else if(ob.objectType=="circle")
+		{
+			can.beginPath();
+            can.arc(ob.x0, ob.y0, Math.abs(ob.x1-ob.x0), 0, 2 * Math.PI, true);
+			if(ob.stroke !="")
+			{	can.lineWidth=ob.line;
+				can.strokeStyle=ob.stroke;
+				can.stroke();
+			}
+			if(ob.fill !="")
+			{	can.fillStyle=ob.fill;
+				can.fill();
+			}	
+		}
+		else if(ob.objectType=="line")
+		{	can.beginPath();
+			can.moveTo(ob.x0,ob.y0);
+			can.lineTo(ob.x1,ob.y1);
+			if(ob.stroke !="")
+			{	can.strokeStyle=ob.stroke;
+				can.lineWidth=ob.line;
+				can.stroke();
+			}
+			if(ob.fill!="")
+			{
+				can.fill();
+			}
+		}
+
+}
+
+function generateImage(jsonList)
+{//document.write();
+	for(i in jsonList)
+	{
+		draw(jsonList[i])
+	}
+}
+
+function preview(oe,te,tool,save)
+{
+  
+  
+  var ox=oe.clientX-canElement.getBoundingClientRect().left;
+  var oy=oe.clientY-canElement.getBoundingClientRect().top;
+  var tx=te.clientX-canElement.getBoundingClientRect().left;
+  var ty=te.clientY-canElement.getBoundingClientRect().top;
+  
+  can.clearRect(0,0,canElement.width,canElement.height);
+  for(i=0;i<=hist;i=i+1)
+  {
+  	draw(image[i],hist);
+  }
+  draw({"objectType":tool,"stroke":(stroke && cstrokeStyle || ""),"line":(stroke && clineWidth || "1"),"fill":(fill && cfillStyle || ""),"x0":ox,"y0":oy,"x1":tx,"y1":ty});
+  
+  if(save)
+  {
+	hist+=1;
+	latesthist=hist;
+	image[hist]={"objectType":tool,"stroke":(stroke && cstrokeStyle || ""),"line":(stroke && clineWidth || "1"),"fill":(fill && cfillStyle || ""),"x0":ox,"y0":oy,"x1":tx,"y1":ty};
+	
+  }
+  
+
+	  
+}
+
+function selectTool(tool)
+{ 
+
+  currentTool=tool;
+
+}
+
+function setFillColor(color)
+{	
+	cfillStyle=color;
+}
+function setLineColor(color)
+{
+	cstrokeStyle=color;
+}
+function setLineWidth()
+{
+	clineWidth=document.getElementById("widthsel").value;
+}
+function toggleStroke()
+{
+	if(stroke) stroke=false; else stroke=true;
+}
+function toggleFill()
+{	
+	if(fill) fill=false; else fill=true;
+}
+
+function redo()
+{
+    if(hist<latesthist)
+    {
+    	hist=hist+1;
+    	can.clearRect(0,0,canElement.width,canElement.height);
+		  for(i=0;i<=hist;i=i+1)
+		  {
+		  	draw(image[i]);
+		  }
+    }
+    
+}
+function undo()
+{
+	if(hist>=0)
+    {
+    	hist=hist-1;
+    	can.clearRect(0,0,canElement.width,canElement.height);
+		  for(i=0;i<=hist;i=i+1)
+		  {
+		  	draw(image[i]);
+		  }
+    }
+    
+}
+
+
+
+canElement.addEventListener("mousedown", function(e){if( currentTool != undefined){me1=e;}});
+canElement.addEventListener("mousemove", function(e){if(me1 !=undefined){preview(me1,e, currentTool,false);}});
+canElement.addEventListener("mouseup", function(e){preview(me1,e, currentTool,true);me1=undefined});
+
+
+
+
+
+
+
+function sendImage()
+{	
+	var tosend=new Array();
+	for(i=edithist;i<=hist;i+=1)
+	{
+		tosend[i-edithist]=image[i];
+	}
+	
+	$.post("/imagestore",
+	{
+	  image:JSON.stringify(tosend),
+	  fname:fname
+	
+	},
+	function(data,status) {}
+	);
+	
+}
+
+
+generateImage(image)
+
+
+
+</script>
+
+<td>
+<br>
+<button id="rect" onclick="selectTool('rect')">rect</button>
+<button id="circle" onclick="selectTool('circle')">circle</button>
+<button id="line" onclick="selectTool('line')">line</button>
+
+<br>
+line width
+<select id="widthsel" onchange="setLineWidth()">
+<option value="1">1px</option>
+<option value="2">2px</option>
+<option value="3">3px</option>
+<option value="5">5px</option>
+<option value="8">8px</option>
+<option value="12">12px</option>
+<option value="20">20px</option>
+
+</select>
+<br>
+fill
+<table>
+<tr>
+<td>
+<input type="checkbox" checked="yes" value="on" onclick="toggleFill()"></input>
+</td>
+<td>
+<div onclick="setFillColor('#000000')" style="width:20px;height:20px;background-color:#000000"></div>
+</td>
+<td>
+<div onclick="setFillColor('#ffffff')" style="width:20px;height:20px;background-color:#ffffff"></div>
+</td>
+<td>
+<div onclick="setFillColor('#ff0000')" style="width:20px;height:20px;background-color:#ff0000"></div>
+</td>
+<td>
+<div onclick="setFillColor('#00ff00')" style="width:20px;height:20px;background-color:#00ff00"></div>
+</td>
+<td>
+<div onclick="setFillColor('#0000ff')" style="width:20px;height:20px;background-color:#0000ff"></div>
+</td>
+<td>
+<div onclick="setFillColor('#ffff00')" style="width:20px;height:20px;background-color:#ffff00"></div>
+</td>
+<td>
+<div onclick="setFillColor('#00ffff')" style="width:20px;height:20px;background-color:#00ffff"></div>
+</td>
+<td>
+<div onclick="setFillColor('#ff00ff')" style="width:20px;height:20px;background-color:#ff00ff"></div>
+</td>
+</tr>
+</table>
+line
+<table>
+<tr>
+<td>
+<input type="checkbox"  checked="yes" onclick="toggleStroke()"></input>
+</td>
+<td>
+<div onclick="setLineColor('#000000')" style="width:20px;height:20px;background-color:#000000"></div>
+</td>
+<td>
+<div onclick="setLineColor('#ffffff')" style="width:20px;height:20px;background-color:#ffffff"></div>
+</td>
+<td>
+<div onclick="setLineColor('#ff0000')" style="width:20px;height:20px;background-color:#ff0000"></div>
+</td>
+<td>
+<div onclick="setLineColor('#00ff00')" style="width:20px;height:20px;background-color:#00ff00"></div>
+</td>
+<td>
+<div onclick="setLineColor('#0000ff')" style="width:20px;height:20px;background-color:#0000ff"></div>
+</td>
+<td>
+<div onclick="setLineColor('#ffff00')" style="width:20px;height:20px;background-color:#ffff00"></div>
+</td>
+<td>
+<div onclick="setLineColor('#00ffff')" style="width:20px;height:20px;background-color:#00ffff"></div>
+</td>
+<td>
+<div onclick="setLineColor('#ff00ff')" style="width:20px;height:20px;background-color:#ff00ff"></div>
+</td>
+</tr>
+</table>
+<button id="undo" onclick="undo()">undo</button>
+<button id="redo" onclick="redo()">redo</button>
+
+</td>
+</tr>
+</table>
+<div>
+
+<button id="save" onclick="sendImage()">Save</button>
+
+
+
+</div>
+
+</body>
+
+
